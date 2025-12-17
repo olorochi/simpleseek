@@ -56,9 +56,11 @@ static class Program {
         switch (ev.KeyInf.Key) {
             case ConsoleKey.Enter:
                 src.Cancel();
+                src = new();
                 files.Clear();
-                src.TryReset();
-                Task s = client.SearchAsync(new(input.ToString()), cancellationToken: src.Token);
+                string query = input.ToString();
+                if (!String.IsNullOrWhiteSpace(query))
+                    client.SearchAsync(new(input.ToString()), cancellationToken: src.Token);
                 return;
             case ConsoleKey.Escape:
                 exit = true;
@@ -87,8 +89,11 @@ static class Program {
                 DeleteInputChar(cursor - 1);
                 goto case ConsoleKey.LeftArrow;
             default:
-                ++cursor;
-                input.Append(ev.KeyInf.KeyChar);
+                char c = ev.KeyInf.KeyChar;
+                if (c != '\0') {
+                    ++cursor;
+                    input.Append(ev.KeyInf.KeyChar);
+                }
                 break;
         }
 
