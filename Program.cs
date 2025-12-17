@@ -1,93 +1,91 @@
 ﻿using Soulseek;
+using System.Text;
+using System.Collections.Concurrent;
 
 namespace SimpleSeek;
 
-struct UserInfo {
-    public string user;
-    public string pwd;
+struct User(string name, string pass) {
+    public string Name = name;
+    public string Pass = pass;
+}
+
+enum EvType {
+    Input,
+    Response
+}
+
+abstract class Event(EvType type) {
+    public EvType Type = type;
+}
+
+class InputEvent(ConsoleKeyInfo key) : Event(EvType.Input) {
+    public ConsoleKeyInfo Key = key;
+}
+
+class ResponseEvent(Directory dir) : Event(EvType.Response) {
+    public Directory Dir = dir;
 }
 
 static class Program {
-    static UserInfo userInfo;
+    static StringBuilder input = new();
+    static bool redraw;
 
-    public static int IndexOfFrom(ReadOnlySpan<char> s, int i, char c = '\\') {
-        do if (s[i++] == c) return i;
-        while (i < s.Length);
-        return s.Length;
-    }
-
-    static SearchResponse[]? FromCache(string file) {
-        if (!System.IO.File.Exists(file))
-            return null;
-
-        BinaryReader reader = new(System.IO.File.Open(file, FileMode.Open));
-        SearchResponse[] resps = new SearchResponse[reader.ReadInt32()];
-        for (int i = 0; i < resps.Length; ++i) {
-            string user = reader.ReadString();
-            Soulseek.File[] files = new Soulseek.File[reader.ReadInt32()];
-            for (int f = 0; f < files.Length; ++f)
-                files[f] = new Soulseek.File(0, reader.ReadString(), 0, "");
-
-            resps[i] = new(user, 0, false, 0, 0, files);
+    static User GetUser() {
+        List<string?> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
+        for (int i = 0; i < vars.Count; i++) {
+            vars[i] = Environment.GetEnvironmentVariable(vars[i]);
         }
 
-        reader.Close();
-        return resps;
-    }
-
-    static void CacheResps(SearchResponse[] resps, int size, string file) {
-        BinaryWriter writer = new(System.IO.File.Open(file, FileMode.OpenOrCreate));
-        writer.Write(size);
-        for (int i = 0; i < size; ++i) {
-            var r = resps[i];
-            writer.Write(r.Username);
-            writer.Write(r.Files.Count);
-            foreach(var f in r.Files) {
-                writer.Write(f.Filename);
-            }
+        var unset = vars.FindAll(s => s == null);
+        if (unset.Count != 0) {
+            Console.Write(
+                $"SimpleSeek is configured through environment variables. You must export the following: {string.Join(", ", unset)}"
+            );
+            Environment.Exit(1);
         }
 
-        writer.Close();
+        return new(vars[0], vars[1]);
     }
 
-    static int Main(string[] args) {
-        string cache = $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}/simpleseek"; // for reproducible tests
-        SearchResponse[]? resps = FromCache(cache);
-        if (resps == null) {
-            userInfo.user = Environment.GetEnvironmentVariable("SOULSEEK_USER");
-            userInfo.pwd = Environment.GetEnvironmentVariable("SOULSEEK_PASSWORD");
+    static void HandleInput() {
 
-            SoulseekClient client = new();
-            Task conn = client.ConnectAsync(userInfo.user, userInfo.pwd);
-            conn.Wait();
+    }
 
-            resps = new SearchResponse[256];
-            Task search = client.SearchAsync(new("Evoken"), options: new(searchTimeout: 2000, responseLimit: resps.Length));
+    static void HandleResponse() {
 
-            int i = -1;
-            client.SearchResponseReceived += (object? sender, SearchResponseReceivedEventArgs ev) => {
-                Interlocked.Increment(ref i);
-                resps[i] = (ev.Response);
-            };
-            search.Wait();
+    }
 
-            try {
-                CacheResps(resps, i, cache);
-            } catch (Exception e) {
-                Console.WriteLine($"failed to cache responses: {e.Message}");
-                System.IO.File.Delete(cache);
+    static void DisplayFiles() {
+
+    }
+
+    static void Main(string[] args) {
+        User user = GetUser();
+
+        SoulseekClient client = new();
+        Task conn = client.ConnectAsync(user.Name, user.Pass);
+
+        List<Directory> files = new();
+        BlockingCollection<Event> events = new();
+        client.SearchResponseReceived += (object? sender, SearchResponseReceivedEventArgs ev) => {
+            events.Add(new ResponseEvent(new(ev.Response)));
+        };
+
+        Thread inputThread = new(() => {
+            while (true) events.Add(new InputEvent(Console.ReadKey(true)));
+        });
+
+        foreach (var ev in events.GetConsumingEnumerable()) {
+            switch (ev.Type) {
+                case EvType.Input:
+                    HandleInput();
+                    break;
+                case EvType.Response:
+                    HandleResponse();
+                    break;
             }
+
+            if (events.Count == 0 && redraw) DisplayFiles();
         }
-
-        List<File> files = new(resps.Length);
-        foreach (var r in resps)
-            try {
-                if (r.FileCount > 0) files.Add(new Directory(r));
-            } catch(Exception e) {
-                Console.WriteLine($"Threw while processing response from {r.Username}. {e.Message}:\n {e.StackTrace}");
-            }
-        foreach (var f in files)
-            Console.WriteLine(f);
-        return 0;
     }
 }

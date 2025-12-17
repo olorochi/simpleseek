@@ -1,5 +1,4 @@
 using Soulseek;
-using static SimpleSeek.Program;
 
 namespace SimpleSeek;
 
@@ -34,8 +33,6 @@ class Directory : File {
         CreateTree(resp.Files, this);
     }
 
-
-
     public override string ToString(int level) {
         StringWriter writer = new();
         writer.Write(base.ToString(level++));
@@ -67,12 +64,19 @@ class Directory : File {
         loc.RemoveRange(depth, loc.Count - depth);
     }
 
+    // returns 1 past the next '\\' or the end
+    public static int NextDir(ReadOnlySpan<char> s, int i) {
+        do if (s[i++] == '\\') return i;
+        while (i < s.Length);
+        return s.Length;
+    }
+
     public static void CreateTree(IReadOnlyCollection<Soulseek.File> files, Directory root) {
         List<Directory> loc = new(8) {root};
 
         int start = 0;
         string name = files.ElementAt(0).Filename;
-        for (int c = IndexOfFrom(name, 0); c < name.Length; c = IndexOfFrom(name, c)) {
+        for (int c = NextDir(name, 0); c < name.Length; c = NextDir(name, c)) {
             Directory dir = new(name.Substring(start, c - start));
             loc.Last().children.Add(dir);
             loc.Add(dir);
@@ -85,7 +89,7 @@ class Directory : File {
             int c = 0;
             for (int depth = 1; depth < loc.Count; ++depth) {
                 start = c;
-                c = IndexOfFrom(name, c);
+                c = NextDir(name, c);
 
                 if (!loc[depth].name.StartsWith(name.Substring(start, c - start))) {
                     FinalizeDir(loc, depth);
@@ -94,7 +98,7 @@ class Directory : File {
             }
 
             start = c;
-            c = IndexOfFrom(name, c);
+            c = NextDir(name, c);
 
             newloc:
             while (c < name.Length) {
@@ -102,7 +106,7 @@ class Directory : File {
                 loc.Last().children.Add(dir);
                 loc.Add(dir);
                 start = c;
-                c = IndexOfFrom(name, start);
+                c = NextDir(name, start);
             }
             loc.Last().children.Add(new(name.Substring(start, name.Length - start)));
         }
