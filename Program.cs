@@ -47,11 +47,11 @@ static class Program {
         return new(vars[0], vars[1]);
     }
 
-    static void HandleInput() {
+    static void HandleInput(InputEvent ev) {
 
     }
 
-    static void HandleResponse() {
+    static void HandleResponse(ResponseEvent ev) {
 
     }
 
@@ -78,10 +78,10 @@ static class Program {
         foreach (var ev in events.GetConsumingEnumerable()) {
             switch (ev.Type) {
                 case EvType.Input:
-                    HandleInput();
+                    HandleInput((InputEvent)ev);
                     break;
                 case EvType.Response:
-                    HandleResponse();
+                    HandleResponse((ResponseEvent)ev);
                     break;
             }
 
