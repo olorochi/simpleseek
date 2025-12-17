@@ -19,7 +19,7 @@ abstract class Event(EvType type) {
 }
 
 class InputEvent(ConsoleKeyInfo key) : Event(EvType.Input) {
-    public ConsoleKeyInfo Key = key;
+    public ConsoleKeyInfo KeyInf = key;
 }
 
 class ResponseEvent(Directory dir) : Event(EvType.Response) {
@@ -27,8 +27,13 @@ class ResponseEvent(Directory dir) : Event(EvType.Response) {
 }
 
 static class Program {
+    static CancellationTokenSource src = new();
+    static SoulseekClient client = new();
     static StringBuilder input = new();
+    static List<Directory> files = new();
     static bool redraw;
+    static bool exit;
+    static int cursor;
 
     static User GetUser() {
         List<string?> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
@@ -48,33 +53,87 @@ static class Program {
     }
 
     static void HandleInput(InputEvent ev) {
+        switch (ev.KeyInf.Key) {
+            case ConsoleKey.Enter:
+                src.Cancel();
+                files.Clear();
+                src.TryReset();
+                Task s = client.SearchAsync(new(input.ToString()), cancellationToken: src.Token);
+                return;
+            case ConsoleKey.Escape:
+                exit = true;
+                return;
+            case ConsoleKey.RightArrow:
+                if (cursor < input.Length)
+                    ++cursor;
+                break;
+            case ConsoleKey.LeftArrow:
+                cursor = Math.Max(0, cursor - 1);
+                break;
+            case ConsoleKey.PageUp:
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.Home:
+                cursor = 0;
+                break;
+            case ConsoleKey.PageDown:
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.End:
+                cursor = input.Length;
+                break;
+            case ConsoleKey.Delete:
+                DeleteInputChar(cursor);
+                break;
+            case ConsoleKey.Backspace:
+                DeleteInputChar(cursor - 1);
+                goto case ConsoleKey.LeftArrow;
+            default:
+                ++cursor;
+                input.Append(ev.KeyInf.KeyChar);
+                break;
+        }
 
+        DisplayInput();
+    }
+
+    static void DeleteInputChar(int pos) {
+        if ((uint)pos < input.Length)
+            input.Remove(pos, 1);
+    }
+
+    static void PlaceConsoleCur() {
+        int wrap = cursor / Console.BufferWidth;
+        Console.SetCursorPosition(cursor - wrap * Console.BufferWidth, wrap);
     }
 
     static void HandleResponse(ResponseEvent ev) {
-
+        Console.WriteLine(ev.Dir); // TODO
     }
 
     static void DisplayFiles() {
 
     }
 
+    static void DisplayInput() {
+        Console.SetCursorPosition(0, 0);
+        Console.Write($"{input} "); // overwrite the extra char if we deleted one
+        PlaceConsoleCur();
+    }
+
     static void Main(string[] args) {
         User user = GetUser();
 
-        SoulseekClient client = new();
         Task conn = client.ConnectAsync(user.Name, user.Pass);
 
-        List<Directory> files = new();
         BlockingCollection<Event> events = new();
-        client.SearchResponseReceived += (object? sender, SearchResponseReceivedEventArgs ev) => {
-            events.Add(new ResponseEvent(new(ev.Response)));
-        };
+        client.SearchResponseReceived +=
+            (object? sender, SearchResponseReceivedEventArgs ev) =>
+                SecondaryThreads.OnSearchResp(events, ev.Response);
 
-        Thread inputThread = new(() => {
-            while (true) events.Add(new InputEvent(Console.ReadKey(true)));
-        });
+        Thread inputThread = new(() => SecondaryThreads.InputThread(events));
+        inputThread.Start();
 
+        Console.SetCursorPosition(0, 0);
+        Console.Clear();
         foreach (var ev in events.GetConsumingEnumerable()) {
             switch (ev.Type) {
                 case EvType.Input:
@@ -85,7 +144,19 @@ static class Program {
                     break;
             }
 
-            if (events.Count == 0 && redraw) DisplayFiles();
+            if (exit) Environment.Exit(0);
+            else if (events.Count == 0 && redraw) DisplayFiles();
         }
+    }
+}
+
+// keep static vars in Program thread safe
+static class SecondaryThreads {
+    public static void InputThread(BlockingCollection<Event> evs) {
+        while (true) evs.Add(new InputEvent(Console.ReadKey(true)));
+    }
+
+    public static void OnSearchResp(BlockingCollection<Event> evs, SearchResponse resp) {
+            evs.Add(new ResponseEvent(new(resp)));
     }
 }
