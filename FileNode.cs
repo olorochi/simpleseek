@@ -1,7 +1,6 @@
 using Soulseek;
-using System.Text;
 
-namespace SimpleSeek;
+namespace Simpleseek;
 
 class File {
     public enum Kind : byte {
@@ -16,14 +15,12 @@ class File {
         this.name = name;
     }
 
-    public virtual void WriteTo(StringBuilder sb, int level, ref int remainingLines)
+    public virtual void BuildLines(List<Line> lines, int level = 0)
     {
-        sb.Append(ToString(level));
-        remainingLines--;
+        lines.Add(new Line(
+            $"{String.Concat(Enumerable.Repeat("    ", level))}{name}"
+        ));
     }
-
-    public virtual string ToString(int level) => $"{new string('\t', level)}{name}\n";
-    public override string ToString() => name;
 }
 
 class Directory : File {
@@ -40,25 +37,14 @@ class Directory : File {
         CreateTree(resp.Files, this);
     }
 
-    public override void WriteTo(StringBuilder sb, int level, ref int remainingLines)
+    public override void BuildLines(List<Line> lines, int level = 0)
     {
-        if (remainingLines <= 0)
-            return;
-
-        base.WriteTo(sb, level, ref remainingLines);
+        base.BuildLines(lines, level);
         foreach (var child in children)
-        {
-            if (remainingLines <= 0)
-                break;
+            child.BuildLines(lines, level + 1);
 
-            child.WriteTo(sb, level + 1, ref remainingLines);
-        }
-
-        if (level == 0 && remainingLines > 0)
-        {
-            sb.Append('\n');
-            remainingLines--;
-        }
+        if (level == 0)
+            lines.Add(new Line(string.Empty));
     }
 
     private static void FinalizeDir(List<Directory> loc, int depth) {

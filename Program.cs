@@ -2,7 +2,7 @@
 using System.Text;
 using System.Collections.Concurrent;
 
-namespace SimpleSeek;
+namespace Simpleseek;
 
 struct User {
     public string Name;
@@ -47,8 +47,6 @@ static class Program {
     static CancellationTokenSource src = new();
     static SoulseekClient client = new();
     static StringBuilder input = new();
-    static List<Directory> files = new();
-    static bool redraw;
     static bool exit;
     static int cursor;
 
@@ -61,7 +59,7 @@ static class Program {
         var unset = vars.FindAll(s => s == null);
         if (unset.Count != 0) {
             Console.Write(
-                $"SimpleSeek is configured through environment variables. You must export the following: {string.Join(", ", unset)}"
+                $"Simpleseek is configured through environment variables. You must export the following: {string.Join(", ", unset)}"
             );
             Environment.Exit(1);
         }
@@ -74,7 +72,7 @@ static class Program {
             case ConsoleKey.Enter:
                 src.Cancel();
                 src = new();
-                files.Clear();
+                DirBrowser.Clear();
                 string query = input.ToString();
                 if (!String.IsNullOrWhiteSpace(query))
                     client.SearchAsync(new(input.ToString()), cancellationToken: src.Token);
@@ -90,14 +88,18 @@ static class Program {
                 cursor = Math.Max(0, cursor - 1);
                 break;
             case ConsoleKey.PageUp:
-            case ConsoleKey.UpArrow:
             case ConsoleKey.Home:
                 cursor = 0;
                 break;
             case ConsoleKey.PageDown:
-            case ConsoleKey.DownArrow:
             case ConsoleKey.End:
                 cursor = input.Length;
+                break;
+            case ConsoleKey.UpArrow:
+                DirBrowser.SelUp();
+                break;
+            case ConsoleKey.DownArrow:
+                DirBrowser.SelDown();
                 break;
             case ConsoleKey.Delete:
                 DeleteInputChar(cursor);
@@ -122,36 +124,13 @@ static class Program {
             input.Remove(pos, 1);
     }
 
-    static void PlaceConsoleCur() {
+    public static void PlaceConsoleCur() {
         int wrap = cursor / Console.BufferWidth;
         Console.SetCursorPosition(cursor - wrap * Console.BufferWidth, wrap);
     }
 
     static void HandleResponse(ResponseEvent ev) {
-        // TODO: sorting
-        files.Add(ev.Dir);
-        redraw = true; // TODO: check for visibility
-    }
-
-    static void DisplayFiles()
-    {
-        redraw = false;
-        Console.Clear();
-        Console.SetCursorPosition(0, cursor / Console.BufferWidth + 1);
-
-        int remainingLines = Console.BufferHeight - Console.CursorTop - 1;
-        var sb = new StringBuilder();
-
-        foreach (var file in files)
-        {
-            if (remainingLines <= 0)
-                break;
-
-            file.WriteTo(sb, 0, ref remainingLines);
-        }
-
-        Console.Write(sb);
-        DisplayInput();
+        DirBrowser.Add(ev.Dir);
     }
 
     static void DisplayInput() {
@@ -186,7 +165,7 @@ static class Program {
             }
 
             if (exit) Environment.Exit(0);
-            else if (events.Count == 0 && redraw) DisplayFiles();
+            else if (events.Count == 0) DirBrowser.Display();
         }
     }
 }
