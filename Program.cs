@@ -4,9 +4,14 @@ using System.Collections.Concurrent;
 
 namespace SimpleSeek;
 
-struct User(string name, string pass) {
-    public string Name = name;
-    public string Pass = pass;
+struct User {
+    public string Name;
+    public string Pass;
+
+    public User(string name, string pass) {
+        Name = name;
+        Pass = pass;
+    }
 }
 
 enum EvType {
@@ -14,16 +19,28 @@ enum EvType {
     Response
 }
 
-abstract class Event(EvType type) {
-    public EvType Type = type;
+abstract class Event {
+    public EvType Type;
+
+    public Event(EvType type) {
+        Type = type;
+    }
 }
 
-class InputEvent(ConsoleKeyInfo key) : Event(EvType.Input) {
-    public ConsoleKeyInfo KeyInf = key;
+class InputEvent : Event {
+    public ConsoleKeyInfo KeyInf;
+
+    public InputEvent(ConsoleKeyInfo keyInf) : base(EvType.Input) {
+        KeyInf = keyInf;
+    }
 }
 
-class ResponseEvent(Directory dir) : Event(EvType.Response) {
-    public Directory Dir = dir;
+class ResponseEvent : Event {
+    public Directory Dir;
+
+    public ResponseEvent(Directory dir) : base(EvType.Response) {
+        Dir = dir;
+    }
 }
 
 static class Program {
