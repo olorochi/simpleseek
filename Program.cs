@@ -111,11 +111,30 @@ static class Program {
     }
 
     static void HandleResponse(ResponseEvent ev) {
-        Console.WriteLine(ev.Dir); // TODO
+        // TODO: sorting
+        files.Add(ev.Dir);
+        redraw = true; // TODO: check for visibility
     }
 
-    static void DisplayFiles() {
+    static void DisplayFiles()
+    {
+        redraw = false;
+        Console.Clear();
+        Console.SetCursorPosition(0, cursor / Console.BufferWidth + 1);
 
+        int remainingLines = Console.BufferHeight - Console.CursorTop - 1;
+        var sb = new StringBuilder();
+
+        foreach (var file in files)
+        {
+            if (remainingLines <= 0)
+                break;
+
+            file.WriteTo(sb, 0, ref remainingLines);
+        }
+
+        Console.Write(sb);
+        DisplayInput();
     }
 
     static void DisplayInput() {

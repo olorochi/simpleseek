@@ -1,4 +1,5 @@
 using Soulseek;
+using System.Text;
 
 namespace SimpleSeek;
 
@@ -15,7 +16,13 @@ class File {
         this.name = name;
     }
 
-    public virtual string ToString(int level) => $"{String.Concat(Enumerable.Repeat('\t', level))}{name}\n";
+    public virtual void WriteTo(StringBuilder sb, int level, ref int remainingLines)
+    {
+        sb.Append(ToString(level));
+        remainingLines--;
+    }
+
+    public virtual string ToString(int level) => $"{new string('\t', level)}{name}\n";
     public override string ToString() => name;
 }
 
@@ -33,17 +40,26 @@ class Directory : File {
         CreateTree(resp.Files, this);
     }
 
-    public override string ToString(int level) {
-        StringWriter writer = new();
-        writer.Write(base.ToString(level++));
-        foreach (var child in children)
-            writer.Write(child.ToString(level));
+    public override void WriteTo(StringBuilder sb, int level, ref int remainingLines)
+    {
+        if (remainingLines <= 0)
+            return;
 
-        writer.Close();
-        string ret = writer.ToString();
-        return ret;
+        base.WriteTo(sb, level, ref remainingLines);
+        foreach (var child in children)
+        {
+            if (remainingLines <= 0)
+                break;
+
+            child.WriteTo(sb, level + 1, ref remainingLines);
+        }
+
+        if (level == 0 && remainingLines > 0)
+        {
+            sb.Append('\n');
+            remainingLines--;
+        }
     }
-    public override string ToString() => ToString(0);
 
     private static void FinalizeDir(List<Directory> loc, int depth) {
         for (int d = depth; d < loc.Count - 1; ++d) {
