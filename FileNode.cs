@@ -1,6 +1,54 @@
+using System.Runtime.InteropServices;
 using Soulseek;
 
 namespace Simpleseek;
+
+struct FileIterator {
+    public Directory Dir;
+    public int I; 
+
+    public File Current => Dir.Children[I];
+    public bool Next() => ++I < Dir.Children.Count;
+
+    public FileIterator(Directory dir, int i) {
+        Dir = dir;
+        I = i;
+    }
+}
+
+struct DirIterator {
+    List<FileIterator> Loc;
+
+    public File Current {get => Loc.Last().Current;}
+    public int Depth {get => Loc.Count;}
+
+    public DirIterator() {
+        Loc = new(8);
+    }
+
+    public void ChangeRoot(Directory root) {
+        Loc.Clear();
+        Loc.Add(new(root, 0));
+    }
+
+    public bool Next() {
+        if (Current.kind == File.Kind.Directory) {
+            Loc.Add(new ((Directory)Current, 0));
+            return true;
+        }
+
+        int remove = 0;
+        var span = CollectionsMarshal.AsSpan(Loc);
+        while (remove < Loc.Count - 1 && !span[^(remove + 1)].Next()) ++remove;
+
+        if (remove > 0) {
+            Loc.RemoveRange(Loc.Count - remove, remove);
+            return Loc.Count != 1;
+        }
+
+        return true;
+    }
+}
 
 class File {
     public enum Kind : byte {
@@ -15,7 +63,7 @@ class File {
         this.name = name;
     }
 
-    public virtual void BuildLines(List<Line> lines, int level = 0)
+    public virtual void BuildLine(List<Line> lines, int level = 0)
     {
         lines.Add(new Line(
             $"{String.Concat(Enumerable.Repeat("    ", level))}{name}"
@@ -24,45 +72,43 @@ class File {
 }
 
 class Directory : File {
-    public List<File> children;
+    public List<File> Children;
 
     public Directory(string name, int cap = 1) : base(name) {
         kind = File.Kind.Directory;
-        children = new(cap);
+        Children = new(cap);
     }
 
     public Directory(SearchResponse resp) : base(resp.Username) {
         kind = File.Kind.Directory;
-        children = new();
+        Children = new();
         CreateTree(resp.Files, this);
     }
 
-    public override void BuildLines(List<Line> lines, int level = 0)
+    public void BuildLines(List<Line> lines, DirIterator it)
     {
-        base.BuildLines(lines, level);
-        foreach (var child in children)
-            child.BuildLines(lines, level + 1);
-
-        if (level == 0)
-            lines.Add(new Line(string.Empty));
+        it.ChangeRoot(this);
+        BuildLine(lines, 0);
+        while (it.Next()) it.Current.BuildLine(lines, it.Depth);
+        lines.Add(new Line(string.Empty));
     }
 
     private static void FinalizeDir(List<Directory> loc, int depth) {
         for (int d = depth; d < loc.Count - 1; ++d) {
             Directory current = loc[d];
-            if (current.children.Count != 1) {
-                current.children.TrimExcess();
+            if (current.Children.Count != 1) {
+                current.Children.TrimExcess();
                 continue;
             };
 
-            Directory child = (Directory)current.children[0];
-            // string += forces more heap allocations than necessary. We could use a StringBuilder for the name (but we're heavily network bound anyways)
+            Directory child = (Directory)current.Children[0];
+            // string+= forces more heap allocations than necessary. We could use a StringBuilder for the name (but we're heavily network bound anyways)
             current.name += child.name;
-            current.children = child.children;
+            current.Children = child.Children;
             loc[d + 1] = current;
         }
 
-        loc[^1].children.TrimExcess();
+        loc[^1].Children.TrimExcess();
         loc.RemoveRange(depth, loc.Count - depth);
     }
 
@@ -80,11 +126,11 @@ class Directory : File {
         string name = files.ElementAt(0).Filename;
         for (int c = NextDir(name, 0); c < name.Length; c = NextDir(name, c)) {
             Directory dir = new(name.Substring(start, c - start));
-            loc.Last().children.Add(dir);
+            loc.Last().Children.Add(dir);
             loc.Add(dir);
             start = c;
         }
-        loc.Last().children.Add(new(name.Substring(start, name.Length - start)));
+        loc.Last().Children.Add(new(name.Substring(start, name.Length - start)));
 
         for (int i = 1; i < files.Count; ++i) {
             name = files.ElementAt(i).Filename;
@@ -105,12 +151,12 @@ class Directory : File {
             newloc:
             while (c < name.Length) {
                 Directory dir = new(name.Substring(start, c - start));
-                loc.Last().children.Add(dir);
+                loc.Last().Children.Add(dir);
                 loc.Add(dir);
                 start = c;
                 c = NextDir(name, start);
             }
-            loc.Last().children.Add(new(name.Substring(start, name.Length - start)));
+            loc.Last().Children.Add(new(name.Substring(start, name.Length - start)));
         }
 
         FinalizeDir(loc, 1);

@@ -84,7 +84,8 @@ static class DirBrowser {
         redraw = true;
         Lines.Clear();
         ShownFiles = FileOffset;
-        do Files[ShownFiles].BuildLines(Lines);
+        DirIterator it = new();
+        do Files[ShownFiles].BuildLines(Lines, it);
         while (Lines.Count - LineOffset < Height && ++ShownFiles < Files.Count);
         ShownFiles -= FileOffset;
     }
