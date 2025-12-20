@@ -44,17 +44,18 @@ class ResponseEvent : Event {
 }
 
 static class Program {
-    static CancellationTokenSource src = new();
-    static SoulseekClient client = new();
-    static StringBuilder input = new();
-    static bool exit;
-    static int cursor;
+    static CancellationTokenSource Src = new();
+    static SoulseekClient Client = new();
+    static StringBuilder Input = new();
+    static Task Conn;
+    static bool Exit;
+    static int Cursor;
 
     static User GetUser() {
         List<string?> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
-        for (int i = 0; i < vars.Count; i++) {
+        for (int i = 0; i < vars.Count; i++)
             vars[i] = Environment.GetEnvironmentVariable(vars[i]);
-        }
+
 
         var unset = vars.FindAll(s => s == null);
         if (unset.Count != 0) {
@@ -70,30 +71,25 @@ static class Program {
     static void HandleInput(InputEvent ev) {
         switch (ev.KeyInf.Key) {
             case ConsoleKey.Enter:
-                src.Cancel();
-                src = new();
-                DirBrowser.Clear();
-                string query = input.ToString();
-                if (!String.IsNullOrWhiteSpace(query))
-                    client.SearchAsync(new(input.ToString()), cancellationToken: src.Token);
+                Search();
                 return;
             case ConsoleKey.Escape:
-                exit = true;
+                Exit = true;
                 return;
             case ConsoleKey.RightArrow:
-                if (cursor < input.Length)
-                    ++cursor;
+                if (Cursor < Input.Length)
+                    ++Cursor;
                 break;
             case ConsoleKey.LeftArrow:
-                cursor = Math.Max(0, cursor - 1);
+                Cursor = Math.Max(0, Cursor - 1);
                 break;
             case ConsoleKey.PageUp:
             case ConsoleKey.Home:
-                cursor = 0;
+                Cursor = 0;
                 break;
             case ConsoleKey.PageDown:
             case ConsoleKey.End:
-                cursor = input.Length;
+                Cursor = Input.Length;
                 break;
             case ConsoleKey.UpArrow:
                 DirBrowser.SelUp();
@@ -102,16 +98,16 @@ static class Program {
                 DirBrowser.SelDown();
                 break;
             case ConsoleKey.Delete:
-                DeleteInputChar(cursor);
+                DeleteInputChar(Cursor);
                 break;
             case ConsoleKey.Backspace:
-                DeleteInputChar(cursor - 1);
+                DeleteInputChar(Cursor - 1);
                 goto case ConsoleKey.LeftArrow;
             default:
                 char c = ev.KeyInf.KeyChar;
                 if (c != '\0') {
-                    ++cursor;
-                    input.Append(ev.KeyInf.KeyChar);
+                    ++Cursor;
+                    Input.Append(ev.KeyInf.KeyChar);
                 }
                 break;
         }
@@ -119,14 +115,25 @@ static class Program {
         DisplayInput();
     }
 
+    static void Search() {
+        string query = Input.ToString();
+        if (!String.IsNullOrWhiteSpace(query)) {
+            Src.Cancel();
+            Src = new();
+            DirBrowser.Clear();
+            Conn.Wait();
+            Client.SearchAsync(new(Input.ToString()), cancellationToken: Src.Token);
+        }
+    }
+
     static void DeleteInputChar(int pos) {
-        if ((uint)pos < input.Length)
-            input.Remove(pos, 1);
+        if ((uint)pos < Input.Length)
+            Input.Remove(pos, 1);
     }
 
     public static void PlaceConsoleCur() {
-        int wrap = cursor / Console.BufferWidth;
-        Console.SetCursorPosition(cursor - wrap * Console.BufferWidth, wrap);
+        int wrap = Cursor / Console.BufferWidth;
+        Console.SetCursorPosition(Cursor - wrap * Console.BufferWidth, wrap);
     }
 
     static void HandleResponse(ResponseEvent ev) {
@@ -135,17 +142,16 @@ static class Program {
 
     static void DisplayInput() {
         Console.SetCursorPosition(0, 0);
-        Console.Write($"{input} "); // overwrite the extra char if we deleted one
+        Console.Write($"{Input} "); // overwrite the extra char if we deleted one
         PlaceConsoleCur();
     }
 
     static void Main(string[] args) {
         User user = GetUser();
-
-        Task conn = client.ConnectAsync(user.Name, user.Pass);
+        Conn = Client.ConnectAsync(user.Name, user.Pass);
 
         BlockingCollection<Event> events = new();
-        client.SearchResponseReceived +=
+        Client.SearchResponseReceived +=
             (object? sender, SearchResponseReceivedEventArgs ev) =>
                 SecondaryThreads.OnSearchResp(events, ev.Response);
 
@@ -164,7 +170,7 @@ static class Program {
                     break;
             }
 
-            if (exit) Environment.Exit(0);
+            if (Exit) Environment.Exit(0);
             else if (events.Count == 0) DirBrowser.Display();
         }
     }
