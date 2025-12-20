@@ -63,15 +63,21 @@ class File {
         this.name = name;
     }
 
-    public virtual void BuildLine(List<Line> lines, int level = 0)
+    public void BuildLine(List<Line> lines, int level = 0)
     {
         lines.Add(new Line(
-            $"{String.Concat(Enumerable.Repeat("    ", level))}{name}"
+            $"{String.Concat(Enumerable.Repeat("    ", level))}{ToString()}"
         ));
     }
+
+    public override string ToString() => name;
 }
 
 class Directory : File {
+    // avoids unnecessary heap allocations
+    [ThreadStatic] static DirIterator s_Writer = new();
+    [ThreadStatic] static DirIterator s_Counter = new();
+
     public List<File> Children;
 
     public Directory(string name, int cap = 1) : base(name) {
@@ -79,18 +85,29 @@ class Directory : File {
         Children = new(cap);
     }
 
-    public Directory(SearchResponse resp) : base(resp.Username) {
-        kind = File.Kind.Directory;
-        Children = new();
-        CreateTree(resp.Files, this);
+    public void BuildLines(List<Line> lines)
+    {
+        s_Writer.ChangeRoot(this);
+        lines.Add(new(ToString()));
+        while (s_Writer.Next())
+            s_Writer.Current.BuildLine(lines, s_Writer.Depth - 1);
+        lines.Add(new(string.Empty));
     }
 
-    public void BuildLines(List<Line> lines, DirIterator it)
-    {
-        it.ChangeRoot(this);
-        BuildLine(lines, 0);
-        while (it.Next()) it.Current.BuildLine(lines, it.Depth);
-        lines.Add(new Line(string.Empty));
+
+    public int CountChildren() {
+        s_Counter.ChangeRoot(this);
+        int i = 1;
+        while (s_Counter.Next()) ++i;
+        return i;
+    }
+
+    public int CountFiles() {
+        s_Counter.ChangeRoot(this);
+        int i = 0;
+        do if (s_Counter.Current.kind == File.Kind.Regular) ++i;
+        while (s_Counter.Next());
+        return i;
     }
 
     private static void FinalizeDir(List<Directory> loc, int depth) {
@@ -160,5 +177,16 @@ class Directory : File {
         }
 
         FinalizeDir(loc, 1);
+    }
+}
+
+class Root : Directory {
+    public int Speed {get;}
+
+    public override string ToString() => $"{name} - {Speed}kbps";
+
+    public Root(SearchResponse resp) : base(resp.Username) {
+        Speed = resp.UploadSpeed / 1024;
+        CreateTree(resp.Files, this);
     }
 }

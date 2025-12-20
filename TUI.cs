@@ -16,7 +16,7 @@ struct Line {
 }
 
 static class DirBrowser {
-    static List<Directory> Files = new(256);
+    static List<Root> Files = new(256);
     static List<Line> Lines = new(Console.WindowHeight * 2);
     static int LineOffset; // first shown line
     static int FileOffset; // belongs to what file
@@ -28,14 +28,16 @@ static class DirBrowser {
 
     static int Height {get => Console.WindowHeight - Top;}
 
-    public static void Add(Directory dir) {
-        // TODO: sorting
-        Files.Add(dir);
-        if (Lines.Count < Height) BuildLines();
-        // if (pos <= FileOffset)
-        //     if (Files.Count != 1) ++LineOffset;
-        //     else BuildLines();
-        // else if (Lines.Count < Height || pos - FileOffset <= ShownFiles) BuildLines();
+    public static void Add(Root dir) {
+        int pos = BinarySearchInsert(dir);
+
+        Files.Insert(pos, dir);
+        if (pos <= FileOffset)
+            if (Lines.Count < Height) {
+                FileOffset = pos;
+                BuildLines();
+            } else ++FileOffset;
+        else if (Lines.Count < Height || pos - FileOffset <= ShownFiles) BuildLines();
     }
 
     public static void Clear() {
@@ -84,9 +86,22 @@ static class DirBrowser {
         redraw = true;
         Lines.Clear();
         ShownFiles = FileOffset;
-        DirIterator it = new();
-        do Files[ShownFiles].BuildLines(Lines, it);
+        do Files[ShownFiles].BuildLines(Lines);
         while (Lines.Count - LineOffset < Height && ++ShownFiles < Files.Count);
         ShownFiles -= FileOffset;
+    }
+
+    static int BinarySearchInsert(Root dir) {
+        int n = dir.Speed;
+        int low = 0;
+        int high = Files.Count;
+
+        while (low < high) {
+            int mid = low + ((high - low) >> 1);
+            if (Files[mid].Speed > n) low = mid + 1;
+            else high = mid;
+        }
+
+        return low;
     }
 }

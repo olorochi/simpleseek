@@ -36,9 +36,9 @@ class InputEvent : Event {
 }
 
 class ResponseEvent : Event {
-    public Directory Dir;
+    public Root Dir;
 
-    public ResponseEvent(Directory dir) : base(EvType.Response) {
+    public ResponseEvent(Root dir) : base(EvType.Response) {
         Dir = dir;
     }
 }
