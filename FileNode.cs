@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Soulseek;
+using static Simpleseek.Program;
 
 namespace Simpleseek;
 
@@ -63,11 +64,8 @@ class File {
         this.name = name;
     }
 
-    public void BuildLine(List<Line> lines, int level = 0)
-    {
-        lines.Add(new Line(
-            $"{String.Concat(Enumerable.Repeat("    ", level))}{ToString()}"
-        ));
+    public void BuildLine(List<Line> lines, int level = 0) {
+        lines.Add(new($"{Repeat("    ", level)}{ToString()}"));
     }
 
     public override string ToString() => name;
@@ -75,8 +73,8 @@ class File {
 
 class Directory : File {
     // avoids unnecessary heap allocations
-    [ThreadStatic] static DirIterator s_Writer = new();
-    [ThreadStatic] static DirIterator s_Counter = new();
+    static DirIterator s_Writer = new();
+    static DirIterator s_Counter = new();
 
     public List<File> Children;
 
@@ -85,15 +83,13 @@ class Directory : File {
         Children = new(cap);
     }
 
-    public void BuildLines(List<Line> lines)
-    {
+    public void BuildLines(List<Line> lines) {
         s_Writer.ChangeRoot(this);
         lines.Add(new(ToString()));
         while (s_Writer.Next())
             s_Writer.Current.BuildLine(lines, s_Writer.Depth - 1);
         lines.Add(new(string.Empty));
     }
-
 
     public int CountChildren() {
         s_Counter.ChangeRoot(this);

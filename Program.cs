@@ -51,6 +51,8 @@ static class Program {
     static bool Exit;
     static int Cursor;
 
+    public static string Repeat(string s, int n) => String.Concat(Enumerable.Repeat(s, n));
+
     static User GetUser() {
         List<string?> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
         for (int i = 0; i < vars.Count; i++)
@@ -76,6 +78,18 @@ static class Program {
             case ConsoleKey.Escape:
                 Exit = true;
                 return;
+            case ConsoleKey.PageUp:
+                DirBrowser.Up();
+                return;
+            case ConsoleKey.PageDown:
+                DirBrowser.Down();
+                return;
+            case ConsoleKey.UpArrow:
+                DirBrowser.SelUp();
+                return;
+            case ConsoleKey.DownArrow:
+                DirBrowser.SelDown();
+                return;
             case ConsoleKey.RightArrow:
                 if (Cursor < Input.Length)
                     ++Cursor;
@@ -83,19 +97,11 @@ static class Program {
             case ConsoleKey.LeftArrow:
                 Cursor = Math.Max(0, Cursor - 1);
                 break;
-            case ConsoleKey.PageUp:
             case ConsoleKey.Home:
                 Cursor = 0;
                 break;
-            case ConsoleKey.PageDown:
             case ConsoleKey.End:
                 Cursor = Input.Length;
-                break;
-            case ConsoleKey.UpArrow:
-                DirBrowser.SelUp();
-                break;
-            case ConsoleKey.DownArrow:
-                DirBrowser.SelDown();
                 break;
             case ConsoleKey.Delete:
                 DeleteInputChar(Cursor);
