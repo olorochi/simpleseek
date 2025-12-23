@@ -21,7 +21,7 @@ static class DirBrowser {
     static int LineOffset; // first shown line
     static int FileOffset; // belongs to what file
     static int ShownFiles;
-    // static int Selected;
+    static int Selected;
     static bool redraw;
     const int Top = 1;
     const int Left = 0;
@@ -55,6 +55,7 @@ static class DirBrowser {
     }
 
     public static void Up() {
+        Selected = Math.Min(Height - 1, Selected + 1);
         if (FileOffset == 0 && LineOffset == 0) return;
         redraw = true;
         --LineOffset;
@@ -79,6 +80,7 @@ static class DirBrowser {
     }
 
     public static void Down() {
+        Selected = Math.Max(0, Selected - 1);
         if (LastFile == Files.Count - 1 && LastLine == Lines.Count - 1 || Lines.Count < Bottom) return;
         redraw = true;
 
@@ -106,11 +108,17 @@ static class DirBrowser {
     }
 
     public static void SelUp() {
-        throw new NotImplementedException();
+        if (Lines.Count == 0) return;
+        do if (--Selected < 0) Up();
+        while (Lines[LineOffset + Selected].IsSep());
+        redraw = true;
     }
 
     public static void SelDown() {
-        throw new NotImplementedException();
+        if (Lines.Count == 0) return;
+        do if (++Selected == Height) Down();
+        while (Lines[LineOffset + Selected].IsSep());
+        redraw = true;
     }
 
     public static File GetSel() {
@@ -121,9 +129,16 @@ static class DirBrowser {
         if (!redraw) return; // TODO: redraw should be an int that indicates from which display line to start drawing
         redraw = false;
         Console.SetCursorPosition(Left, Top);
+
         int last = Math.Min(Height + LineOffset, Lines.Count);
-        for (int i = LineOffset; i < last; ++i) 
-            Lines[i].Write();
+        for (int i = LineOffset; i < last; ++i) {
+            if (i - LineOffset == Selected) {
+                Console.BackgroundColor = ConsoleColor.White;
+                Console.ForegroundColor = ConsoleColor.Black;
+                Lines[i].Write();
+                Console.ResetColor();
+            } else Lines[i].Write();
+        }
 
         Program.PlaceConsoleCur();
     }
