@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using Soulseek;
 using static Simpleseek.Program;
 
@@ -33,7 +34,7 @@ struct DirIterator {
     }
 
     public bool Next() {
-        if (Current.kind == File.Kind.Directory) {
+        if (Current.FKind == File.Kind.Directory) {
             Loc.Add(new ((Directory)Current, 0));
             return true;
         }
@@ -49,6 +50,14 @@ struct DirIterator {
 
         return true;
     }
+
+    public string CurrentPath() {
+        StringBuilder sb = new();
+        for (int i = 0; i < Loc.Count; ++i)
+            sb.Append(Loc[i].Current.Name);
+
+        return sb.ToString();
+    }
 }
 
 class File {
@@ -57,29 +66,29 @@ class File {
         Directory
     }
 
-    public string name;
-    public Kind kind;
+    public string Name;
+    public Kind FKind;
 
     public File(string name) {
-        this.name = name;
+        this.Name = name;
     }
 
     public void BuildLine(List<Line> lines, int level = 0) {
         lines.Add(new($"{Repeat("    ", level)}{ToString()}"));
     }
 
-    public override string ToString() => name;
+    public override string ToString() => Name;
 }
 
 class Directory : File {
     // avoids unnecessary heap allocations
-    static DirIterator s_Writer = new();
-    static DirIterator s_Counter = new();
+    protected static DirIterator s_Writer = new();
+    protected static DirIterator s_Counter = new();
 
     public List<File> Children;
 
     public Directory(string name, int cap = 1) : base(name) {
-        kind = File.Kind.Directory;
+        FKind = File.Kind.Directory;
         Children = new(cap);
     }
 
@@ -101,7 +110,7 @@ class Directory : File {
     public int CountFiles() {
         s_Counter.ChangeRoot(this);
         int i = 0;
-        do if (s_Counter.Current.kind == File.Kind.Regular) ++i;
+        do if (s_Counter.Current.FKind == File.Kind.Regular) ++i;
         while (s_Counter.Next());
         return i;
     }
@@ -116,7 +125,7 @@ class Directory : File {
 
             Directory child = (Directory)current.Children[0];
             // string+= forces more heap allocations than necessary. We could use a StringBuilder for the name (but we're heavily network bound anyways)
-            current.name += child.name;
+            current.Name += child.Name;
             current.Children = child.Children;
             loc[d + 1] = current;
         }
@@ -152,7 +161,7 @@ class Directory : File {
                 start = c;
                 c = NextDir(name, c);
 
-                if (!loc[depth].name.StartsWith(name.Substring(start, c - start))) {
+                if (!loc[depth].Name.StartsWith(name.Substring(start, c - start))) {
                     FinalizeDir(loc, depth);
                     goto newloc;
                 }
@@ -178,11 +187,22 @@ class Directory : File {
 
 class Root : Directory {
     public int Speed {get;}
-
-    public override string ToString() => $"{name} - {Speed}kbps";
+    public int Queue {get;}
+    public bool Slot {get;}
 
     public Root(SearchResponse resp) : base(resp.Username) {
         Speed = resp.UploadSpeed / 1024;
+        Queue = resp.QueueLength;
+        Slot = resp.HasFreeUploadSlot;
         CreateTree(resp.Files, this);
+    }
+
+    public override string ToString() => $"{Name} - {Speed}kbps Queue:{Queue} Free Slot:{Slot}";
+
+    public string PathAt(int i) {
+        s_Counter.ChangeRoot(this);
+        int c = 0;
+        while (c++ != i) s_Counter.Next();
+        return $"{Name}\0{s_Counter.CurrentPath()}";
     }
 }
