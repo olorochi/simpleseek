@@ -26,7 +26,7 @@ static class DirBrowser {
     const int Top = 1;
     const int Left = 0;
 
-    static int Height {get => Console.WindowHeight - Top - 1;}
+    static int Height {get => Console.WindowHeight - Top;}
     static int Bottom {get => Height + LineOffset;}
     static int LastLine {get => Math.Min(Bottom, Lines.Count - 1);}
     static int LastFile {get => FileOffset + ShownFiles;}
@@ -121,16 +121,8 @@ static class DirBrowser {
         redraw = true;
     }
 
-    public static string GetSel() {
-        int r = FileOffset;
-        int f = 0;
-        for (int i = LineOffset; i < LineOffset + Selected; ++i)
-            if (Lines[i].IsSep()) {
-                ++r;
-                f = 0;
-            } else ++f;
-
-        return Files[r].PathAt(f);
+    public static File GetSel() {
+        throw new NotImplementedException();
     }
 
     public static void Display() {
@@ -172,31 +164,5 @@ static class DirBrowser {
         }
 
         return low;
-    }
-}
-
-static class Statusbar {
-    public static string Mes {get; set;} = "";
-    static string Status = "";
-    static int id;
-
-    public static void Display() {
-        Console.SetCursorPosition(0, Console.WindowHeight - 1);
-        Console.Write($"{Mes.PadRight(Console.WindowWidth - Status.Length)}{Status}");
-        Program.PlaceConsoleCur();
-    }
-
-    public static void UpdateStatus(IReadOnlyCollection<Soulseek.Transfer> transfers) {
-        long total = 0;
-        long progress = 0;
-
-        foreach (var t in transfers) {
-            total += t.Size;
-            progress += t.BytesTransferred;
-        }
-
-        total /= 1024 * 1024 * 8;
-        progress /= 1024 * 1024 * 8;
-        Status = $"{progress}/{total}MiB";
     }
 }
