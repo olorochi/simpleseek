@@ -16,7 +16,8 @@ struct User {
 
 enum EvType {
     Input,
-    Response
+    Response,
+    Status
 }
 
 abstract class Event {
@@ -25,6 +26,10 @@ abstract class Event {
     public Event(EvType type) {
         Type = type;
     }
+}
+
+class StatusEvent : Event {
+    public StatusEvent() : base(EvType.Status) { }
 }
 
 class InputEvent : Event {
@@ -54,24 +59,31 @@ static class Program {
     public static string Repeat(string s, int n) => String.Concat(Enumerable.Repeat(s, n));
 
     static User GetUser() {
-        List<string?> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
-        for (int i = 0; i < vars.Count; i++)
-            vars[i] = Environment.GetEnvironmentVariable(vars[i]);
+        bool warn = true;
 
+        List<string> vars = new (["SOULSEEK_USER", "SOULSEEK_PASSWORD"]);
+        List<string?> set = new(vars.Count);
+        for (int i = 0; i < vars.Count; i++) {
+            set.Add(Environment.GetEnvironmentVariable(vars[i]));
+            if (set[i] == null) {
+                if (warn) {
+                    Console.WriteLine("Simpleseek is configured through environment variables. You must export the following: ");
+                    warn = false;
+                }
 
-        var unset = vars.FindAll(s => s == null);
-        if (unset.Count != 0) {
-            Console.Write(
-                $"Simpleseek is configured through environment variables. You must export the following: {string.Join(", ", unset)}"
-            );
-            Environment.Exit(1);
+                Console.WriteLine(vars[i]);
+            }
         }
 
-        return new(vars[0], vars[1]);
+        if (!warn) Environment.Exit(1); // if we have warned the user
+        return new(set[0], set[1]);
     }
 
     static void HandleInput(InputEvent ev) {
         switch (ev.KeyInf.Key) {
+            case ConsoleKey.F1: // Placeholder key. Should be enter but depend on current focus.
+                Download();
+                return;
             case ConsoleKey.Enter:
                 Search();
                 return;
@@ -121,6 +133,18 @@ static class Program {
         DisplayInput();
     }
 
+    static async void Download() {
+        string full = DirBrowser.GetSel();
+        string user = full.Substring(0, full.IndexOf('\0'));
+        string path = full.Substring(user.Length);
+
+        try {
+            Transfer down = await Client.DownloadAsync(user, path, path);
+        } catch (Exception e) {
+            Statusbar.Mes = e.Message;
+        }
+    }
+
     static void Search() {
         string query = Input.ToString();
         if (!String.IsNullOrWhiteSpace(query)) {
@@ -164,6 +188,9 @@ static class Program {
         Thread inputThread = new(() => SecondaryThreads.InputThread(events));
         inputThread.Start();
 
+        Thread statusThread = new(() => SecondaryThreads.StatusThread(events));
+        statusThread.Start();
+
         Console.SetCursorPosition(0, 0);
         Console.Clear();
         foreach (var ev in events.GetConsumingEnumerable()) {
@@ -173,6 +200,10 @@ static class Program {
                     break;
                 case EvType.Response:
                     HandleResponse((ResponseEvent)ev);
+                    break;
+                case EvType.Status:
+                    Statusbar.UpdateStatus(Client.Downloads);
+                    Statusbar.Display();
                     break;
             }
 
@@ -188,7 +219,14 @@ static class SecondaryThreads {
         while (true) evs.Add(new InputEvent(Console.ReadKey(true)));
     }
 
+    public static void StatusThread(BlockingCollection<Event> evs) {
+        while (true) {
+            evs.Add(new StatusEvent());
+            Thread.Sleep(1000);
+        }
+    }
+
     public static void OnSearchResp(BlockingCollection<Event> evs, SearchResponse resp) {
-            evs.Add(new ResponseEvent(new(resp)));
+        evs.Add(new ResponseEvent(new(resp)));
     }
 }
