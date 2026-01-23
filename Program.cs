@@ -53,7 +53,6 @@ static class Program {
     static SoulseekClient Client = new();
     static StringBuilder Input = new();
     static Task Conn;
-    static bool Exit;
     static int Cursor;
 
     public static string Repeat(string s, int n) => String.Concat(Enumerable.Repeat(s, n));
@@ -88,7 +87,7 @@ static class Program {
                 Search();
                 return;
             case ConsoleKey.Escape:
-                Exit = true;
+                Exit();
                 return;
             case ConsoleKey.PageUp:
                 DirBrowser.Up();
@@ -139,9 +138,15 @@ static class Program {
         string path = full.Substring(user.Length);
 
         try {
-            Transfer down = await Client.DownloadAsync(user, path, path);
+            await Client.DownloadAsync(
+                    user,
+                    path,
+                    path,
+                    options: new(
+
+                        ));
         } catch (Exception e) {
-            Statusbar.Mes = e.Message;
+            throw e;
         }
     }
 
@@ -176,6 +181,10 @@ static class Program {
         PlaceConsoleCur();
     }
 
+    static void Exit() {
+        Environment.Exit(0);
+    }
+
     static void Main(string[] args) {
         User user = GetUser();
         Conn = Client.ConnectAsync(user.Name, user.Pass);
@@ -207,8 +216,7 @@ static class Program {
                     break;
             }
 
-            if (Exit) Environment.Exit(0);
-            else if (events.Count == 0) DirBrowser.Display();
+            if (events.Count == 0) DirBrowser.Display();
         }
     }
 }
