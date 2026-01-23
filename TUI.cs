@@ -43,6 +43,23 @@ static class DirBrowser {
         else if (Lines.Count < Height || pos - FileOffset <= ShownFiles) BuildLines();
     }
 
+    public static void EnsureConn(Task conn) {
+        if (conn.IsCompleted) return;
+        Console.SetCursorPosition(Left, Top);
+        string msg = "Waiting for connection...";
+        Console.Write(msg);
+
+        try {
+            conn.Wait();
+        } catch (Exception e) {
+            Console.WriteLine($"\nFailed to connect: {e.Message}");
+            Program.Exit(1);
+        }
+
+        Console.Write(new string(' ', msg.Length));
+        Program.PlaceConsoleCur();
+    }
+
     public static void Clear() {
         Files.Clear();
         Lines.Clear();

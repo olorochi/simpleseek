@@ -74,7 +74,7 @@ static class Program {
             }
         }
 
-        if (!warn) Environment.Exit(1); // if we have warned the user
+        if (!warn) Exit(1); // if we have warned the user
         return new(set[0], set[1]);
     }
 
@@ -87,7 +87,7 @@ static class Program {
                 Search();
                 return;
             case ConsoleKey.Escape:
-                Exit();
+                Exit(0);
                 return;
             case ConsoleKey.PageUp:
                 DirBrowser.Up();
@@ -156,7 +156,8 @@ static class Program {
             Src.Cancel();
             Src = new();
             DirBrowser.Clear();
-            Conn.Wait();
+            DirBrowser.EnsureConn(Conn);
+
             Client.SearchAsync(new(Input.ToString()), cancellationToken: Src.Token);
         }
     }
@@ -181,8 +182,8 @@ static class Program {
         PlaceConsoleCur();
     }
 
-    static void Exit() {
-        Environment.Exit(0);
+    public static void Exit(int code) {
+        Environment.Exit(code);
     }
 
     static void Main(string[] args) {
