@@ -1,6 +1,5 @@
 ﻿using Soulseek;
 using System.Collections.Concurrent;
-using System.Linq;
 
 namespace Simpleseek;
 
@@ -51,7 +50,6 @@ class ResponseEvent : Event {
 static class Program {
     static SoulseekClient Client = new(9999);
     static Task Conn;
-    static int Cursor;
 
     public static string Repeat(string s, int n) => String.Concat(Enumerable.Repeat(s, n));
 
@@ -78,29 +76,37 @@ static class Program {
 
     static void HandleInput(InputEvent ev) {
         switch (ev.KeyInf.Key) {
-            case ConsoleKey.Enter: // Placeholder key. Should be enter but depend on current focus.
+            case ConsoleKey.Spacebar:
+            case ConsoleKey.Enter:
                 Download();
                 break;
+            case ConsoleKey.Q:
             case ConsoleKey.Escape:
                 Exit(0);
                 break;
+            case ConsoleKey.U:
             case ConsoleKey.PageUp:
                 DirBrowser.Up();
                 break;
+            case ConsoleKey.D:
             case ConsoleKey.PageDown:
                 DirBrowser.Down();
                 break;
-            case ConsoleKey.UpArrow:
-                DirBrowser.SelUp();
+            case ConsoleKey.H:
+            case ConsoleKey.LeftArrow:
+                // collapse directory
                 break;
+            case ConsoleKey.J:
             case ConsoleKey.DownArrow:
                 DirBrowser.SelDown();
                 break;
-            case ConsoleKey.LeftArrow:
-                Cursor = Math.Max(0, Cursor - 1);
+            case ConsoleKey.K:
+            case ConsoleKey.UpArrow:
+                DirBrowser.SelUp();
                 break;
-            case ConsoleKey.Home:
-                Cursor = 0;
+            case ConsoleKey.L:
+            case ConsoleKey.RightArrow:
+                // reveal directory
                 break;
         }
     }
