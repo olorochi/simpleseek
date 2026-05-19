@@ -12,7 +12,7 @@ struct Line {
         Console.Write(Text.Length < w ? Text.PadRight(w) : Text[..w]);
     }
 
-    public bool IsSep() => Text.Length == 0;
+    public bool IsBlank() => Text.Length == 0;
 }
 
 static class DirBrowser {
@@ -76,7 +76,7 @@ static class DirBrowser {
         if (FileOffset == 0 && LineOffset == 0) return;
         redraw = true;
         --LineOffset;
-        if (Lines[LastLine].IsSep()) RemoveLast();
+        if (Lines[LastLine].IsBlank()) RemoveLast();
         if (LineOffset == -1) LinePrepend();
     }
 
@@ -101,10 +101,10 @@ static class DirBrowser {
         if (LastFile == Files.Count - 1 && LastLine == Lines.Count - 1 || Lines.Count < Bottom) return;
         redraw = true;
 
-        if (Lines[LineOffset].IsSep()) RemoveFirst();
+        if (Lines[LineOffset].IsBlank()) RemoveFirst();
         else ++LineOffset;
 
-        if (Lines[Bottom - 1].IsSep()) LineAppend();
+        if (Lines[Bottom - 1].IsBlank()) LineAppend();
     }
 
     static void LineAppend() {
@@ -127,14 +127,14 @@ static class DirBrowser {
     public static void SelUp() {
         if (Lines.Count == 0) return;
         do if (--Selected < 0) Up();
-        while (Lines[LineOffset + Selected].IsSep());
+        while (Lines[LineOffset + Selected].IsBlank());
         redraw = true;
     }
 
     public static void SelDown() {
         if (Lines.Count == 0) return;
         do if (++Selected == Height) Down();
-        while (Lines[LineOffset + Selected].IsSep());
+        while (Lines[LineOffset + Selected].IsBlank());
         redraw = true;
     }
 
@@ -142,7 +142,7 @@ static class DirBrowser {
         int r = FileOffset;
         int f = 0;
         for (int i = LineOffset; i < LineOffset + Selected; ++i)
-            if (Lines[i].IsSep()) {
+            if (Lines[i].IsBlank()) {
                 ++r;
                 f = 0;
             } else ++f;
