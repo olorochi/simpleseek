@@ -178,13 +178,13 @@ static class DirBrowser {
     }
 
     static int BinarySearchInsert(Root dir) {
-        int n = dir.Speed;
+        int n = dir.Score();
         int low = 0;
         int high = Files.Count;
 
         while (low < high) {
             int mid = low + ((high - low) >> 1);
-            if (Files[mid].Speed > n) low = mid + 1;
+            if (Files[mid].Score() > n) low = mid + 1;
             else high = mid;
         }
 

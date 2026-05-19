@@ -199,6 +199,8 @@ class Root : Directory {
 
     public override string ToString() => $"{Name} - {Speed}kbps Queue:{Queue} Free Slot:{Slot}";
 
+    public int Score() => Speed + (Slot ? 100000000 : 0);
+
     public string PathAt(int i) {
         s_Counter.ChangeRoot(this);
         int c = 0;
