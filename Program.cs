@@ -162,8 +162,7 @@ static class Program {
                     HandleResponse((ResponseEvent)ev);
                     break;
                 case EvType.Status:
-                    Statusbar.UpdateStatus(Client.Downloads);
-                    Statusbar.Display();
+                    Statusbar.Update(Client.Downloads);
                     break;
             }
 

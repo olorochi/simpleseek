@@ -177,12 +177,7 @@ static class Statusbar {
     static string Status = "";
     static int id;
 
-    public static void Display() {
-        Console.SetCursorPosition(0, Console.WindowHeight - 1);
-        Console.Write($"{Mes.PadRight(Console.WindowWidth - Status.Length)}{Status}");
-    }
-
-    public static void UpdateStatus(IReadOnlyCollection<Soulseek.Transfer> transfers) {
+    public static void Update(IReadOnlyCollection<Soulseek.Transfer> transfers) {
         long total = 0;
         long progress = 0;
 
@@ -194,5 +189,8 @@ static class Statusbar {
         total /= 1024 * 1024 * 8;
         progress /= 1024 * 1024 * 8;
         Status = $"{progress}/{total}MiB";
+
+        Console.SetCursorPosition(0, Console.WindowHeight - 1);
+        Console.Write($"{Mes.PadRight(Console.WindowWidth - Status.Length)}{Status}");
     }
 }
