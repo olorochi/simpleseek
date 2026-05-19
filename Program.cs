@@ -50,7 +50,7 @@ class ResponseEvent : Event {
 
 static class Program {
     static CancellationTokenSource Src = new();
-    static SoulseekClient Client = new();
+    static SoulseekClient Client = new(9999);
     static StringBuilder Input = new();
     static Task Conn;
     static int Cursor;

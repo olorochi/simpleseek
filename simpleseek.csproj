@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Soulseek" Version="8.5.0" />
+    <PackageReference Include="Soulseek" Version="10.0.1" />
   </ItemGroup>
 
 </Project>
