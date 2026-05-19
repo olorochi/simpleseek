@@ -138,16 +138,16 @@ static class DirBrowser {
         redraw = true;
     }
 
-    public static string GetSel() {
-        int r = FileOffset;
-        int f = 0;
+    public static (string, string) GetSel() {
+        int parent = FileOffset;
+        int child = 0;
         for (int i = LineOffset; i < LineOffset + Selected; ++i)
             if (Lines[i].IsBlank()) {
-                ++r;
-                f = 0;
-            } else ++f;
+                ++parent;
+                child = 0;
+            } else ++child;
 
-        return Files[r].PathAt(f);
+        return Files[parent].PathAt(child);
     }
 
     public static void Display() {

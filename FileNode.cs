@@ -201,10 +201,10 @@ class Root : Directory {
 
     public int Score() => Speed + (Slot ? 100000000 : 0);
 
-    public string PathAt(int i) {
+    public (string, string) PathAt(int i) {
         s_Counter.ChangeRoot(this);
         int c = 0;
         while (c++ != i) s_Counter.Next();
-        return $"{Name}\0{s_Counter.CurrentPath()}";
+        return (Name, s_Counter.CurrentPath());
     }
 }

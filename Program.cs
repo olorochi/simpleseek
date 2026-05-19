@@ -132,21 +132,21 @@ static class Program {
         DisplayInput();
     }
 
+    static int token = 0;
     static async void Download() {
-        string full = DirBrowser.GetSel();
-        string user = full.Substring(0, full.IndexOf('\0'));
-        string path = full.Substring(user.Length);
+        (string user, string path) = DirBrowser.GetSel();
+        string local = path.Replace('\\', '/');
 
         try {
             await Client.DownloadAsync(
                     user,
                     path,
-                    path,
-                    options: new(
-
-                        ));
+                    local,
+                    startOffset: 0,
+                    token: ++token
+                    );
         } catch (Exception e) {
-            Statusbar.Mes = e.Message;
+            Statusbar.Mes = $"{e.Message} ({local})";
         }
     }
 
