@@ -23,10 +23,10 @@ static class DirBrowser {
     static int ShownFiles;
     static int Selected;
     static bool redraw;
-    const int Top = 1;
+    const int Top = 0;
     const int Left = 0;
 
-    static int Height {get => Console.WindowHeight - Top - 1;}
+    static int Height {get => Console.WindowHeight - 1;}
     static int Bottom {get => Height + LineOffset;}
     static int LastLine {get => Math.Min(Bottom, Lines.Count - 1);}
     static int LastFile {get => FileOffset + ShownFiles;}
@@ -43,32 +43,14 @@ static class DirBrowser {
         else if (Lines.Count < Height || pos - FileOffset <= ShownFiles) BuildLines();
     }
 
-    public static void EnsureConn(Task conn) {
-        if (conn.IsCompleted) return;
-        Console.SetCursorPosition(Left, Top);
-        string msg = "Waiting for connection...";
-        Console.Write(msg);
-
-        try {
-            conn.Wait();
-        } catch (Exception e) {
-            Console.WriteLine($"\nFailed to connect: {e.Message}");
-            Program.Exit(1);
-        }
-
-        Console.Write(new string(' ', msg.Length));
-        Program.PlaceConsoleCur();
-    }
-
     public static void Clear() {
         Files.Clear();
         Lines.Clear();
         FileOffset = 0;
         LineOffset = 0;
         ShownFiles = 0;
-        Console.SetCursorPosition(Left, Top);
+        Console.SetCursorPosition(0, 0);
         Console.Write(new string(' ', Console.WindowWidth * Height));
-        Program.PlaceConsoleCur();
     }
 
     public static void Up() {
@@ -153,7 +135,7 @@ static class DirBrowser {
     public static void Display() {
         if (!redraw) return; // TODO: redraw should be an int that indicates from which display line to start drawing
         redraw = false;
-        Console.SetCursorPosition(Left, Top);
+        Console.SetCursorPosition(0, 0);
 
         int last = Math.Min(Height + LineOffset, Lines.Count);
         for (int i = LineOffset; i < last; ++i) {
@@ -164,8 +146,6 @@ static class DirBrowser {
                 Console.ResetColor();
             } else Lines[i].Write();
         }
-
-        Program.PlaceConsoleCur();
     }
 
     static void BuildLines() { // TODO: remove
@@ -200,7 +180,6 @@ static class Statusbar {
     public static void Display() {
         Console.SetCursorPosition(0, Console.WindowHeight - 1);
         Console.Write($"{Mes.PadRight(Console.WindowWidth - Status.Length)}{Status}");
-        Program.PlaceConsoleCur();
     }
 
     public static void UpdateStatus(IReadOnlyCollection<Soulseek.Transfer> transfers) {

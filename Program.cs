@@ -1,5 +1,4 @@
 ﻿using Soulseek;
-using System.Text;
 using System.Collections.Concurrent;
 
 namespace Simpleseek;
@@ -49,9 +48,7 @@ class ResponseEvent : Event {
 }
 
 static class Program {
-    static CancellationTokenSource Src = new();
     static SoulseekClient Client = new(9999);
-    static StringBuilder Input = new();
     static Task Conn;
     static int Cursor;
 
@@ -80,30 +77,23 @@ static class Program {
 
     static void HandleInput(InputEvent ev) {
         switch (ev.KeyInf.Key) {
-            case ConsoleKey.F1: // Placeholder key. Should be enter but depend on current focus.
+            case ConsoleKey.Enter: // Placeholder key. Should be enter but depend on current focus.
                 Download();
-                return;
-            case ConsoleKey.Enter:
-                Search();
-                return;
+                break;
             case ConsoleKey.Escape:
                 Exit(0);
-                return;
+                break;
             case ConsoleKey.PageUp:
                 DirBrowser.Up();
-                return;
+                break;
             case ConsoleKey.PageDown:
                 DirBrowser.Down();
-                return;
+                break;
             case ConsoleKey.UpArrow:
                 DirBrowser.SelUp();
-                return;
+                break;
             case ConsoleKey.DownArrow:
                 DirBrowser.SelDown();
-                return;
-            case ConsoleKey.RightArrow:
-                if (Cursor < Input.Length)
-                    ++Cursor;
                 break;
             case ConsoleKey.LeftArrow:
                 Cursor = Math.Max(0, Cursor - 1);
@@ -111,25 +101,7 @@ static class Program {
             case ConsoleKey.Home:
                 Cursor = 0;
                 break;
-            case ConsoleKey.End:
-                Cursor = Input.Length;
-                break;
-            case ConsoleKey.Delete:
-                DeleteInputChar(Cursor);
-                break;
-            case ConsoleKey.Backspace:
-                DeleteInputChar(Cursor - 1);
-                goto case ConsoleKey.LeftArrow;
-            default:
-                char c = ev.KeyInf.KeyChar;
-                if (c != '\0') {
-                    ++Cursor;
-                    Input.Append(ev.KeyInf.KeyChar);
-                }
-                break;
         }
-
-        DisplayInput();
     }
 
     static int token = 0;
@@ -151,36 +123,8 @@ static class Program {
         }
     }
 
-    static void Search() {
-        string query = Input.ToString();
-        if (!String.IsNullOrWhiteSpace(query)) {
-            Src.Cancel();
-            Src = new();
-            DirBrowser.Clear();
-            DirBrowser.EnsureConn(Conn);
-
-            Client.SearchAsync(new(Input.ToString()), cancellationToken: Src.Token);
-        }
-    }
-
-    static void DeleteInputChar(int pos) {
-        if ((uint)pos < Input.Length)
-            Input.Remove(pos, 1);
-    }
-
-    public static void PlaceConsoleCur() {
-        int wrap = Cursor / Console.BufferWidth;
-        Console.SetCursorPosition(Cursor - wrap * Console.BufferWidth, wrap);
-    }
-
     static void HandleResponse(ResponseEvent ev) {
         DirBrowser.Add(ev.Dir);
-    }
-
-    static void DisplayInput() {
-        Console.SetCursorPosition(0, 0);
-        Console.Write($"{Input} "); // overwrite the extra char if we deleted one
-        PlaceConsoleCur();
     }
 
     public static void Exit(int code) {
@@ -202,8 +146,13 @@ static class Program {
         Thread statusThread = new(() => SecondaryThreads.StatusThread(events));
         statusThread.Start();
 
-        Console.SetCursorPosition(0, 0);
-        Console.Clear();
+        Conn.Wait();
+        string query = "Mizmor";
+        if (String.IsNullOrWhiteSpace(query))
+            Console.WriteLine("No query provided.");
+        else
+            Client.SearchAsync(new(query));
+
         foreach (var ev in events.GetConsumingEnumerable()) {
             switch (ev.Type) {
                 case EvType.Input:
