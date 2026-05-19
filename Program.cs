@@ -1,5 +1,6 @@
 ﻿using Soulseek;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Simpleseek;
 
@@ -146,12 +147,29 @@ static class Program {
         Thread statusThread = new(() => SecondaryThreads.StatusThread(events));
         statusThread.Start();
 
-        Conn.Wait();
-        string query = "Mizmor";
-        if (String.IsNullOrWhiteSpace(query))
+        string query = "";
+        for (int i = 0; i < args.Length; ++i) { // TODO: deamon mode for file sharing and persistent connections
+            switch(args[i]) {
+                case "-q":
+                case "--query":
+                    ++i;
+                    query = args[i];
+                    break;
+                default:
+                case "--":
+                    query = String.Join(' ', args.Skip(i - 1));
+                    break;
+            }
+        }
+
+        if (String.IsNullOrWhiteSpace(query)) {
             Console.WriteLine("No query provided.");
-        else
+            Exit(1);
+        }
+        else {
+            Conn.Wait();
             Client.SearchAsync(new(query));
+        }
 
         foreach (var ev in events.GetConsumingEnumerable()) {
             switch (ev.Type) {
