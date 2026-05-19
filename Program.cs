@@ -136,6 +136,7 @@ static class Program {
     static async void Download() {
         (string user, string path) = DirBrowser.GetSel();
         string local = path.Replace('\\', '/');
+        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(local));
 
         try {
             await Client.DownloadAsync(
